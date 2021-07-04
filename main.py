@@ -23,6 +23,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn import svm
+from sklearn.model_selection import KFold
 
 
 
@@ -75,14 +76,8 @@ def findBestHpPerModel(model, train_x, train_y, hyper_params):
 
 
 
-
-
-
-
-
-
-
-
+def getBestSubsetPerModel(model, best_hyper_params, train_x,train_y,time_search):
+    return featureSelection(train_x, train_y, time_search, model, best_hyper_params)
 
 
 
@@ -127,7 +122,7 @@ def findSubsets(s, n):
     return list(itertools.combinations(s, n))
 
 
-def featureSelectionAllCombinations(train_x, train_y, time_left):
+def featureSelectionAllCombinations(train_x, train_y, time_left,model, hyper_params):
     time_for_period = time_left
     train_x_feature_selection, train_y_feature_selection = \
         train_x[:int(train_x.shape[0] // 1.2)], train_y[:int(train_x.shape[0] // 1.2)]
@@ -147,7 +142,7 @@ def featureSelectionAllCombinations(train_x, train_y, time_left):
         start = time.perf_counter()
         selected_features = findSubsets(train_x.columns, num_of_features)
         for i in range(len(selected_features)):
-            classifier = KNeighborsClassifier(n_neighbors=25)
+            classifier = model(**hyper_params)
             classifier.fit(train_x_feature_selection[list(selected_features[i])],
                            train_y_feature_selection)
             predicts = classifier.predict(validate_x_feature_selection[list(selected_features[i])])
@@ -158,82 +153,121 @@ def featureSelectionAllCombinations(train_x, train_y, time_left):
 
     return best_subset_features, validate_acc
 
-def forwardLocalSearch(train_x, train_y):
+def forwardLocalSearch(train_x, train_y, model, hyper_params):
     selected_features = []
-    selected_features.append(train_x.columns[0])
-    features = train_x.columns.drop(train_x.columns[0])
-    train_x_feature_selection, train_y_feature_selection = \
-        train_x[:int(train_x.shape[0]//1.2)] , train_y[:int(train_x.shape[0]//1.2)]
-    validate_x_feature_selection, validate_y_feature_selection  = \
-        train_x[int(train_x.shape[0]//1.2):], train_y[int(train_x.shape[0]//1.2):]
+    #selected_features.append(train_x.columns[0])
+    features = train_x.columns#.drop(train_x.columns[0])
+    # train_x_feature_selection, train_y_feature_selection = \
+    #     train_x[:int(train_x.shape[0]//1.2)] , train_y[:int(train_x.shape[0]//1.2)]
+    # validate_x_feature_selection, validate_y_feature_selection  = \
+    #     train_x[int(train_x.shape[0]//1.2):], train_y[int(train_x.shape[0]//1.2):]
+    #
+    # classifier =model(**hyper_params)
+    # classifier.fit(train_x_feature_selection[selected_features],
+    #                train_y_feature_selection)
+    # predicts = classifier.predict(validate_x_feature_selection[selected_features])
+    # accuracy = getAccuracy(predicts, validate_y_feature_selection)
+    # validate_acc = accuracy
 
-    classifier =KNeighborsClassifier(n_neighbors=25)
-    classifier.fit(train_x_feature_selection[selected_features],
-                   train_y_feature_selection)
-    predicts = classifier.predict(validate_x_feature_selection[selected_features])
-    accuracy = getAccuracy(predicts, validate_y_feature_selection)
-    validate_acc = accuracy
+    # for feature in features:
+    #     selected_features.append(feature)
+    #     classifier = model(**hyper_params)
+    #     classifier.fit(train_x_feature_selection[selected_features],
+    #                    train_y_feature_selection)
+    #     predicts = classifier.predict(validate_x_feature_selection[selected_features])
+    #     accuracy = getAccuracy(predicts,validate_y_feature_selection)
+    #     if accuracy > validate_acc:
+    #         validate_acc = accuracy
+    #     else:
+    #         selected_features.remove(feature)
 
+    #print(f"best subset {selected_features} accuracy: {validate_acc}")
+    #return selected_features, validate_acc
+
+    acc = 0
+    kf = KFold(n_splits=5)
     for feature in features:
-        selected_features.append(feature)
-        classifier = KNeighborsClassifier(n_neighbors=25)
-        classifier.fit(train_x_feature_selection[selected_features],
-                       train_y_feature_selection)
-        predicts = classifier.predict(validate_x_feature_selection[selected_features])
-        accuracy = getAccuracy(predicts,validate_y_feature_selection)
-        if accuracy > validate_acc:
-            validate_acc = accuracy
+        total_acc = 0
+        for train_index, test_index in kf.split(train_x):
+            selected_features.append(feature)
+            X_train, X_test = train_x[train_index], train_x[test_index]
+            y_train, y_test = train_y[train_index], train_y[test_index]
+            classifier = model(**hyper_params)
+            classifier.fit(X_train[selected_features],
+                           y_train)
+            predicts = classifier.predict(X_test[selected_features])
+            total_acc += getAccuracy(predicts, y_test)
+
+        if total_acc/5 > acc:
+            acc=total_acc/5
         else:
             selected_features.remove(feature)
+    return selected_features, acc
 
-    print(f"best subset {selected_features} accuracy: {validate_acc}")
-    return selected_features, validate_acc
-
-
-def BackwardLocalSearch(train_x,train_y):
+def BackwardLocalSearch(train_x,train_y,model, hyper_params):
     selected_features = list(train_x.columns)
     features = train_x.columns
-    train_x_feature_selection, train_y_feature_selection = \
-        train_x[:int(train_x.shape[0] // 1.2)], train_y[:int(train_x.shape[0] // 1.2)]
-    validate_x_feature_selection, validate_y_feature_selection = \
-        train_x[int(train_x.shape[0] // 1.2):], train_y[int(train_x.shape[0] // 1.2):]
-
-    classifier = RandomForestClassifier(max_depth=10, min_samples_split=4, n_estimators=25)
-    classifier.fit(train_x_feature_selection[selected_features],
-                   train_y_feature_selection)
-    predicts = classifier.predict(validate_x_feature_selection[selected_features])
-    accuracy = getAccuracy(predicts, validate_y_feature_selection)
-    validate_acc = accuracy
-
+    acc = 0
+    kf = KFold(n_splits=5)
     for feature in features:
-        selected_features.remove(feature)
-        classifier = RandomForestClassifier(max_depth=10, min_samples_split=4, n_estimators=25)
-        classifier.fit(train_x_feature_selection[selected_features],
-                       train_y_feature_selection)
-        predicts = classifier.predict(validate_x_feature_selection[selected_features])
-        accuracy = getAccuracy(predicts, validate_y_feature_selection)
-        if accuracy > validate_acc:
-            validate_acc = accuracy
-        else:
+        total_acc = 0
+        for train_index, test_index in kf.split(train_x):
             selected_features.append(feature)
+            X_train, X_test = train_x[train_index], train_x[test_index]
+            y_train, y_test = train_y[train_index], train_y[test_index]
+            classifier = model(**hyper_params)
+            classifier.fit(X_train[selected_features],
+                           y_train)
+            predicts = classifier.predict(X_test[selected_features])
+            total_acc += getAccuracy(predicts, y_test)
 
-    print(f"best subset {selected_features} accuracy: {validate_acc}")
-    return selected_features, validate_acc
+        if total_acc / 5 > acc:
+            acc = total_acc / 5
+        else:
+            selected_features.remove(feature)
+    return selected_features, acc
+
+    # train_x_feature_selection, train_y_feature_selection = \
+    #     train_x[:int(train_x.shape[0] // 1.2)], train_y[:int(train_x.shape[0] // 1.2)]
+    # validate_x_feature_selection, validate_y_feature_selection = \
+    #     train_x[int(train_x.shape[0] // 1.2):], train_y[int(train_x.shape[0] // 1.2):]
+    #
+    # classifier = model(**hyper_params)
+    # classifier.fit(train_x_feature_selection[selected_features],
+    #                train_y_feature_selection)
+    # predicts = classifier.predict(validate_x_feature_selection[selected_features])
+    # accuracy = getAccuracy(predicts, validate_y_feature_selection)
+    # validate_acc = accuracy
+
+    # for feature in features:
+    #     selected_features.remove(feature)
+    #     classifier = model(**hyper_params)
+    #     classifier.fit(train_x_feature_selection[selected_features],
+    #                    train_y_feature_selection)
+    #     predicts = classifier.predict(validate_x_feature_selection[selected_features])
+    #     accuracy = getAccuracy(predicts, validate_y_feature_selection)
+    #     if accuracy > validate_acc:
+    #         validate_acc = accuracy
+    #     else:
+    #         selected_features.append(feature)
+
+    # print(f"best subset {selected_features} accuracy: {validate_acc}")
+    # return selected_features, validate_acc
 
 
 
 
-def featureSelection(train_x, train_y, time_for_feature_selection):
+def featureSelection(train_x, train_y, time_for_feature_selection, model =None, best_hyper_params = None):
     start = time.perf_counter()
-    forward_best_subset, forward_acc = forwardLocalSearch(train_x,train_y)
+    forward_best_subset, forward_acc = forwardLocalSearch(train_x,train_y,model, best_hyper_params)
     time_for_forward_pass = time.perf_counter() - start
     if time_for_feature_selection < 2.2 * time_for_forward_pass:
         return forward_best_subset
-    backward_best_subset, backward_acc = BackwardLocalSearch(train_x,train_y)
+    backward_best_subset, backward_acc = BackwardLocalSearch(train_x,train_y,model, best_hyper_params)
     time_for_backward_pass = time.perf_counter() - (start + time_for_forward_pass)
 
     all_comb_best_subset, all_comb_acc = featureSelectionAllCombinations(train_x,train_y,
-                                                  time_for_feature_selection-time_for_forward_pass-time_for_backward_pass)
+                                                  time_for_feature_selection-time_for_forward_pass-time_for_backward_pass,model, best_hyper_params)
     max_acc = max(forward_acc,backward_acc,all_comb_acc)
     print(time_for_feature_selection - start > 0)
     if(max_acc == forward_acc):
@@ -247,6 +281,59 @@ def featureSelection(train_x, train_y, time_for_feature_selection):
         return all_comb_best_subset
 
 
+def getBestModel(train_x,train_y, best_subset = None):
+    if best_subset != None:
+        train_x = train_x[best_subset]
+
+    models = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier,
+              svm.SVC]  # ], MLPClassifier, DecisionTreeClassifier]
+
+    DecisionTreeClassifier_HP = [{'criterion': ["gini", "entropy"], 'splitter': ["best", "random"],
+                                  'min_samples_split': [2, 4, 6, 8], 'min_samples_leaf': [2, 4, 6]
+                                     , 'min_weight_fraction_leaf': [0.2, 0.4]}]
+
+    MLPClassifier_HP = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
+                         'learning_rate_init': [0.01, 0.02, 0.005], 'solver': ['sgd', 'adam'],
+                         'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3)]}]
+
+    KNeighborsClassifier_HP = [{'n_neighbors': [10, 25, 50, 75]}]
+
+    RandomForestClassifier_HP = [{"max_depth": [200], 'min_samples_split': [4, 6], 'max_features': ['auto', 'sqrt'],
+                                  "random_state": [0], "n_estimators": [125, 250], 'criterion': ["entropy", "gini"]}]
+
+    AdaBoostClassifier_HP = [{'n_estimators': [25, 75], 'learning_rate': [0.4, 0.8]}]
+
+    svm.SVC_HP = [{'kernel': ['rbf'], 'gamma': [1e-4],
+                   'C': [2, 4, 6]}]
+    best_acc = 0
+    best_model = ""
+    best_hyper_parameters = {}
+    for model in models:
+        hyper_parameters = []
+        if model == KNeighborsClassifier:
+            hyper_parameters = KNeighborsClassifier_HP
+        elif model == RandomForestClassifier:
+            hyper_parameters = RandomForestClassifier_HP
+        elif model == MLPClassifier:
+            hyper_parameters = MLPClassifier_HP
+        elif model == DecisionTreeClassifier:
+            hyper_parameters = DecisionTreeClassifier_HP
+        elif model == AdaBoostClassifier:
+            hyper_parameters = AdaBoostClassifier_HP
+        elif model == svm.SVC:
+            hyper_parameters = svm.SVC_HP
+
+        acc, best_hyper_params_per_model = findBestHpPerModel(model, train_x, train_y, hyper_parameters)
+        if acc > best_acc:
+            best_acc = acc
+            best_model = model
+            best_hyper_parameters = best_hyper_params_per_model
+
+    return  best_model, best_hyper_parameters, best_acc
+
+
+
+
 def BlackBoxModel(data_name =None, time_limit = 600):
     start = time.perf_counter()
     df = pd.read_csv(data_name, sep=',', header=0)
@@ -254,7 +341,6 @@ def BlackBoxModel(data_name =None, time_limit = 600):
         np.split(df.sample(frac=1, random_state=1),
                  [int(.85 * len(df))])
 
-    #train = drop_numerical_outliers(train)
     train, test = normalization(train, test)
     train_y, test_y = train["Creditability"], test["Creditability"]
     train_x, test_x = train.drop(["Creditability"], axis=1), test.drop(["Creditability"], axis=1)
@@ -263,62 +349,26 @@ def BlackBoxModel(data_name =None, time_limit = 600):
     print(f"Time Left: {time_limit - (end-start)}")
 
     time_left = time_limit-time.perf_counter()
-    time_scale = range(1,100,2)
+    time_scale = range(1,100,5)
     acc_list = []
-    for i in range(1,100,2):
-        best_subset = featureSelection(train_x,train_y, i)
-        models = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier, svm.SVC]#], MLPClassifier, DecisionTreeClassifier]
-        KNeighborsClassifier_HP         = [{'n_neighbors': [10,25,50,75]}]
 
+    best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x, train_y=train_y)
 
-        DecisionTreeClassifier_HP       = [{'criterion':["gini", "entropy"], 'splitter' : ["best", "random"] ,
-                                 'min_samples_split': [2,4,6,8], 'min_samples_leaf':[2,4,6]
-                                 ,'min_weight_fraction_leaf': [0.2,0.4]}]
+    print(f"best model is {best_model}, acc: {best_acc}, best parameters: {best_hyper_parameters}")
 
+    for i in range(1,100,5):
+        #best_subset = featureSelection(train_x,train_y, i)
 
-        MLPClassifier_HP                = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
-                                            'learning_rate_init': [0.01,0.02, 0.005],'solver':[ 'sgd', 'adam'], 'max_iter': [10], 'hidden_layer_sizes': [(3,3),(3,2),(4,2),(5, 2), (5,3)]}]
-
-
-        RandomForestClassifier_HP       = [{"max_depth": [200],'min_samples_split':[4,6],'max_features': ['auto', 'sqrt'],
-                                            "random_state": [0], "n_estimators": [125,250],'criterion':["entropy","gini"]}]
-
-        AdaBoostClassifier_HP           =  [{'n_estimators' : [25, 75], 'learning_rate' : [0.4, 0.8]}]
-
-        svm.SVC_HP                      = [{'kernel': ['rbf'], 'gamma': [1e-4],
-                                            'C': [2,4,6]}]
-        best_acc = 0
-        best_model = ""
-        best_hyper_parameters = {}
-        for model in models:
-            hyper_parameters = []
-            if model == KNeighborsClassifier:
-                hyper_parameters = KNeighborsClassifier_HP
-            elif model == RandomForestClassifier:
-                hyper_parameters = RandomForestClassifier_HP
-            elif model == MLPClassifier:
-                hyper_parameters = MLPClassifier_HP
-            elif model == DecisionTreeClassifier:
-                hyper_parameters = DecisionTreeClassifier_HP
-            elif model == AdaBoostClassifier:
-                hyper_parameters = AdaBoostClassifier_HP
-            elif model == svm.SVC:
-                hyper_parameters = svm.SVC_HP
-
-            acc, best_hyper_params_per_model  = findBestHpPerModel(model, train_x[best_subset],train_y, hyper_parameters)
-            if acc > best_acc:
-                best_acc = acc
-                best_model = model
-                best_hyper_parameters = best_hyper_params_per_model
-
-
-        print(f"best model is {best_model}, acc: {best_acc}, best parameters: {best_hyper_parameters}")
+        best_subset_per_model = \
+            getBestSubsetPerModel(model=best_model, best_hyper_params = best_hyper_parameters,
+                                  train_x= train_x,train_y=train_y, time_search = i)
 
         model = best_model(**best_hyper_parameters)
-        model.fit(train_x,train_y)
-        print(f"classification report: = {classification_report(model.predict(test_x), test_y)}")
-        acc_list.append(getAccuracy(model.predict(test_x),test_y))
+        model.fit(train_x[best_subset_per_model], train_y)
+        print(f"classification report: = {classification_report(model.predict(test_x[best_subset_per_model]), test_y)}")
+        acc_list.append(getAccuracy(model.predict(test_x[best_subset_per_model]), test_y))
         print(acc_list[-1])
+
 
     plt.plot(time_scale, acc_list, color="b")
     plt.xlabel("time (sec)")
