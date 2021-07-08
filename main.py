@@ -22,7 +22,7 @@ import random
 
 def filling_missing_values(train, test):
     '''
-    data imputation using mean, median, mode according to the columns types
+    data imputation using mean
     :param train:
     :param validate:
     :param test:
@@ -86,10 +86,7 @@ def anyTimeForwardSearch(train_x,train_y,model, hyper_params, k_factor, time_lef
 
 
 def findBestHpPerModel(model, train_x, train_y, hyper_params):
-    # Set the parameters by cross-validation
-    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
-    #                      'C': [1, 10, 100, 1000]},
-    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+
     scores = ['accuracy']
     for score in scores:
         print("# Tuning hyper-parameters for %s" % score)
@@ -120,11 +117,6 @@ def findBestHpPerModel(model, train_x, train_y, hyper_params):
         print("The model is trained on the full development set.")
         print("The scores are computed on the full evaluation set.")
         print()
-        # y_true, y_pred = y_test, clf.predict(X_test)
-        # print(classification_report(y_true, y_pred))
-        # print()
-        # validate_acc = accuracy_score(y_true, y_pred, normalize=True)
-        # print(f'Accuracy on validation : {validate_acc}')
 
         return clf.best_score_, clf.best_params_ #validate_acc
 
@@ -139,14 +131,13 @@ def featureSelectionOnlyCombCheck(train_x, train_y, time_search, model, best_hyp
 
 def getBestSubsetPerModel(model, best_hyper_params, train_x,train_y,time_search):
     return featureSelection(train_x, train_y, time_search, model, best_hyper_params)
-    #return featureSelectionOnlyCombCheck(train_x, train_y, time_search, model, best_hyper_params)
 
 
 
 
 def drop_numerical_outliers(df, z_thresh=3):
     '''
-     remove outliers according to the z-score method
+     remove outliers according to z-score method
     :param df :
     :param z_thresh:
     :return: updated df
@@ -191,16 +182,14 @@ def featureSelectionAllCombinations(train_x, train_y, time_left,model, hyper_par
     all_subsets = []
     for i in range(1,min(10,len(train_x.columns))):
         all_subsets+=findSubsets(train_x.columns,i)
-    # for num_of_features in range(5,len(train_x.columns)):
-    #     selected_features = findSubsets(train_x.columns, num_of_features)
+
     while time.perf_counter() - start < time_for_period - 0.5:
         features = random.choice(all_subsets)
         total_acc = cross_val_score(model(**hyper_params),scoring='accuracy', X=train_x[list(features)],y=train_y, cv=5)
         if sum(total_acc)/5 > acc:
             acc = sum(total_acc)/5
             best_subset_features = list(features)
-        # if time.perf_counter() - start > time_for_period - 1:
-        #     return best_subset_features,acc
+
     return best_subset_features, acc
 
 def forwardLocalSearch(train_x, train_y, model, hyper_params):
