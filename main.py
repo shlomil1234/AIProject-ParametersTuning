@@ -1,4 +1,4 @@
-from Configuration import DATASETS,LABELS, COLORS, GRAPHS
+from Configuration import DATASETS,LABELS, COLORS, GRAPHS, FEATURE_SELECTION_SCHEDULING, K, DIRECTORY
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -339,22 +339,27 @@ def BlackBoxModel(data_name =None, label=None, time_limit = 600):
     test_acc_list = []
     train_acc_list = []
 
+    if FEATURE_SELECTION_SCHEDULING:
+        best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x, train_y=train_y)
+    else:
+        best_model, best_hyper_parameters = KNeighborsClassifier, {'n_neighbors': 50}
 
-    for i in range(1,12):
-        best_subset, train_acc = anyTimeForwardSearch(train_x, train_y, model =KNeighborsClassifier,
-                                                      hyper_params ={'n_neighbors': 50} , k_factor=i)
+    for i in range(1,K):
+        best_subset, train_acc = anyTimeForwardSearch(train_x, train_y, model=best_model,
+                                                      hyper_params=best_hyper_parameters, k_factor=i)
+        if FEATURE_SELECTION_SCHEDULING:
+            model = best_model(**best_hyper_parameters)
+        else:
+            best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x[best_subset], train_y=train_y)
+            model = best_model(**best_hyper_parameters)
 
-        # best_subset_per_model = \
-        #     getBestSubsetPerModel(model=best_model, best_hyper_params = best_hyper_parameters,
-        #                           train_x= train_x,train_y=train_y, time_search = i)
-
-        best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x[best_subset], train_y=train_y)
-        model = best_model(**best_hyper_parameters)
         model.fit(train_x[best_subset], train_y)
         print(f"classification report: = {classification_report(model.predict(test_x[best_subset]), test_y)}")
         test_acc_list.append(getAccuracy(model.predict(test_x[best_subset]), test_y))
         train_acc_list.append(train_acc)
-        print(f"percents: {i*12.5}%")
+
+
+        print(f"percents: {i/(K-1)*100}% done!")
 
     return time_scale, train_acc_list, test_acc_list
 
@@ -371,7 +376,7 @@ def main():
         plt.xlabel("k")
         plt.ylabel("Accuracy")
         plt.show()
-        plt.savefig("results3/"+GRAPHS[i]+".png", bbox_inches='tight')
+        plt.savefig(DIRECTORY + GRAPHS[i], bbox_inches='tight', format="png")
 
         test_acc_list = [0] + [test_acc_list[k]- test_acc_list[0] for k in range(1,len(test_acc_list))]
         plt.plot(range(0,11), test_acc_list, color=COLORS[i])
@@ -379,7 +384,7 @@ def main():
         plt.xlabel("k-1")
         plt.ylabel("Accuracy changed on test")
         plt.show()
-        plt.savefig("results3/" + GRAPHS[i] +"_Improvement" + ".png", bbox_inches='tight')
+        plt.savefig( DIRECTORY + GRAPHS[i] +"_Improvement", bbox_inches='tight', format="png")
         print(f"------------------Data {data} Done!-------------------")
 
 
