@@ -1,4 +1,6 @@
-from Configuration import DATASETS,LABELS, COLORS, GRAPHS, FEATURE_SELECTION_SCHEDULING, K, DIRECTORY
+from Configuration import DATASETS,LABELS, COLORS, GRAPHS, \
+    FEATURE_SELECTION_SCHEDULING, K, DIRECTORY, \
+    TIME_GRAPH_DIRECTORY
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -16,6 +18,9 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn import svm
 from sklearn.model_selection import cross_val_score
+from sklearn.naive_bayes import GaussianNB
+from sklearn.gaussian_process import GaussianProcessClassifier
+
 import random
 
 
@@ -69,6 +74,7 @@ def anyTimeForwardSearch(train_x,train_y,model, hyper_params, k_factor, time_lef
                 max_features = selected_features.copy()
             for elem in features_to_use[0:sampling_size]:
                 selected_features.remove(elem)
+
 
         if min_acc > acc:
             acc = min_acc
@@ -259,12 +265,15 @@ def getBestModel(train_x,train_y, best_subset = None):
         train_x = train_x[best_subset]
 
     models = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier,
-              svm.SVC]  # ], MLPClassifier, DecisionTreeClassifier]
+              svm.SVC , DecisionTreeClassifier, GaussianNB, GaussianProcessClassifier, MLPClassifier]
 
     DecisionTreeClassifier_HP = [{'criterion': ["gini", "entropy"], 'splitter': ["best", "random"],
                                   'min_samples_split': [2, 4, 6, 8], 'min_samples_leaf': [2, 4, 6]
                                      , 'min_weight_fraction_leaf': [0.2, 0.4]}]
 
+    GaussianNB_HP = [{}]
+    GaussianProcessClassifier_HP = [{'random_state': [0], 'multi_class': ['one_vs_rest','one_vs_one'],
+                                     'n_restarts_optimizer': [0,2,4], 'max_iter_predict': [50,100,150] }]
     MLPClassifier_HP = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
                          'learning_rate_init': [0.01, 0.02, 0.005], 'solver': ['sgd', 'adam'],
                          'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3)]}]
@@ -295,6 +304,10 @@ def getBestModel(train_x,train_y, best_subset = None):
             hyper_parameters = AdaBoostClassifier_HP
         elif model == svm.SVC:
             hyper_parameters = svm.SVC_HP
+        elif model == GaussianNB:
+            hyper_parameters = GaussianNB_HP
+        elif model == GaussianProcessClassifier:
+            hyper_parameters = GaussianProcessClassifier_HP
 
         acc, best_hyper_params_per_model = findBestHpPerModel(model, train_x, train_y, hyper_parameters)
         if acc > best_acc:
@@ -305,9 +318,16 @@ def getBestModel(train_x,train_y, best_subset = None):
     return  best_model, best_hyper_parameters, best_acc
 
 
+def plotTimePerK(k_range, time_per_k, graph):
+    plt.title(f"Time per K for data {GRAPHS[graph]}")
+    plt.plot(k_range, time_per_k, color=COLORS[0])
+    plt.xlabel("k")
+    plt.ylabel("Feature selection time")
+    plt.savefig(TIME_GRAPH_DIRECTORY + GRAPHS[graph], bbox_inches='tight', format="png")
+    plt.show()
 
 
-def BlackBoxModel(data_name =None, label=None, time_limit = 600):
+def BlackBoxModel(data_name =None, label=None, time_limit = 600, graph=None):
     start = time.perf_counter()
     df = pd.read_csv(data_name, sep=',', header=0)
     train, test = \
@@ -333,9 +353,15 @@ def BlackBoxModel(data_name =None, label=None, time_limit = 600):
     else:
         best_model, best_hyper_parameters = KNeighborsClassifier, {'n_neighbors': 50}
 
-    for i in range(1,K):
+    time_per_k = []
+    k_range = range(1,K)
+
+    for i in k_range:
+        start = time.perf_counter()
         best_subset, train_acc = anyTimeForwardSearch(train_x, train_y, model=best_model,
                                                       hyper_params=best_hyper_parameters, k_factor=i)
+        time_per_k.append(time.perf_counter() - start)
+
         if FEATURE_SELECTION_SCHEDULING:
             model = best_model(**best_hyper_parameters)
         else:
@@ -350,30 +376,32 @@ def BlackBoxModel(data_name =None, label=None, time_limit = 600):
 
         print(f"percents: {i/(K-1)*100}% done!")
 
-    return time_scale, train_acc_list, test_acc_list
+    plotTimePerK(k_range, time_per_k,graph)
+
+    return time_scale, train_acc_list, test_acc_list, model
 
 
 
 def main():
     for i,data in enumerate(DATASETS):
         start = time.perf_counter()
-        time_scale, train_acc_list, test_acc_list= BlackBoxModel(data,LABELS[i], 300)
+        time_scale, train_acc_list, test_acc_list, _ = BlackBoxModel(data,LABELS[i], 300,i)
         print(f"TOTAL TIME: {time.perf_counter() - start}")
         plt.title("Accuracy per K")
         plt.plot(range(1,12), train_acc_list, color=COLORS[i])
         plt.plot(range(1,12), test_acc_list, color=COLORS[i+1])
         plt.xlabel("k")
         plt.ylabel("Accuracy")
+        plt.savefig(DIRECTORY + GRAPHS[i] + ".png", bbox_inches='tight')
         plt.show()
-        plt.savefig(DIRECTORY + GRAPHS[i], bbox_inches='tight', format="png")
 
         test_acc_list = [0] + [test_acc_list[k]- test_acc_list[0] for k in range(1,len(test_acc_list))]
         plt.plot(range(0,11), test_acc_list, color=COLORS[i])
         plt.title("Improvement according to the first run")
         plt.xlabel("k-1")
         plt.ylabel("Accuracy changed on test")
+        plt.savefig( DIRECTORY + GRAPHS[i] +"_Improvement.png", bbox_inches='tight')
         plt.show()
-        plt.savefig( DIRECTORY + GRAPHS[i] +"_Improvement", bbox_inches='tight', format="png")
         print(f"------------------Data {data} Done!-------------------")
 
 
