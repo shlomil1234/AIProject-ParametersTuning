@@ -1,19 +1,22 @@
 from Configuration import INPUT, FEATURE_SELECTION_TIME_RATIO,MODEL_AND_PARAMS_TIME_RATIO, \
-    NUM_FEATURES, NUM_SAMPLES
-from main import anyTimeForwardSearch, filling_missing_values, normalization, getBestModel
+    NUM_FEATURES, NUM_SAMPLES, COLORS
+from main import anyTimeForwardSearch, filling_missing_values, normalization, getBestModel, getAccuracy
 import pandas as pd
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import classification_report
 import time
+import matplotlib.pyplot as plt
 
 def findLabel(dataset):
     if dataset == "datasets/German.csv":
         return "Creditability"
-    #TODO: continute
+    elif dataset == "datasets/water_potability.csv":
+        return "Potability"
+    #TODO: continute...
 
 
-def GetBestModel(dataset, label, time_for_feature_selection):
+def GetBestModelAlgorithm(dataset, label, time_for_feature_selection, time_for_tunning_params):
+    start_tunning = time.perf_counter()
     df = pd.read_csv(dataset, sep=',', header=0)
     train, test = \
         np.split(df.sample(frac=1, random_state=1),
@@ -44,31 +47,70 @@ def GetBestModel(dataset, label, time_for_feature_selection):
         last_period = end - start
         k_factor+=1
 
+
     print(f"time for feautre selection: {time.perf_counter() - s}")
-    start = time.perf_counter()
-    best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x[best_subset], train_y=train_y)
+    end_feature_selection_time = time.perf_counter()
+    time_for_tunning_params += time_for_feature_selection-(end_feature_selection_time-start_tunning)
+    print(f"----time for tunning----{time_for_tunning_params}")
+    best_model, best_hyper_parameters, best_acc = getBestModel(train_x=train_x[best_subset],
+                                                               train_y=train_y,
+                                                               time_for_tunning_params= time_for_tunning_params
+                                                               )
     print(f"time for choose models and params: {time.perf_counter() - start}")
 
     model = best_model(**best_hyper_parameters)
     model.fit(train_x[best_subset], train_y)
-    print(f"classification report: = {classification_report(model.predict(test_x[best_subset]), test_y)}")
-    return model
+    # print(f"classification report: = {classification_report(model.predict(test_x[best_subset]), test_y)}")
+    acc = getAccuracy(model.predict(test_x[best_subset]), test_y)
+    return model , acc
 
-def tunningParameters(dataset, total_time):
+def tunningParameters(dataset, total_time, factor_time):
     label = findLabel(dataset)
-    time_for_feature_selection = total_time * FEATURE_SELECTION_TIME_RATIO
-    time_for_model_and_params = total_time * MODEL_AND_PARAMS_TIME_RATIO
+    time_for_feature_selection = total_time * FEATURE_SELECTION_TIME_RATIO * factor_time
+    time_for_model_and_params = total_time * MODEL_AND_PARAMS_TIME_RATIO * (1-factor_time)
 
     #k_factor =  max(round(time_for_feature_selection / (0.003*NUM_SAMPLES[1] + 0.1 * NUM_FEATURES[1])), 1)
-    model = GetBestModel(dataset=dataset,label=label,time_for_feature_selection=time_for_feature_selection)
+    model, acc = GetBestModelAlgorithm(dataset=dataset,label=label,
+                         time_for_feature_selection=time_for_feature_selection,
+                         time_for_tunning_params=time_for_model_and_params
+                         )
+
+    return model, acc
 
 
-
+def makeGraph(x, y, title, x_label, y_label):
+    plt.title(f"{title}")
+    plt.plot(x, y, color=COLORS[0])
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.savefig("tunningtime/German.png", bbox_inches='tight', format="png")
+    plt.show()
 
 
 def main():
     dataset, total_time = INPUT
-    tunningParameters(dataset, total_time)
+    k = 0
+    ratio_set = [0.6,0.8]
+    plt.title(f"Accuracy per time and ratio")
+    plt.xlabel("time")
+    plt.ylabel("accuracy")
+    for ratio in ratio_set:
+        test_acc = []
+        iter_time = []
+        for i in range(1, 10):
+            model , acc = tunningParameters(dataset, total_time*i, ratio)
+            test_acc.append(acc)
+            iter_time.append(total_time * i)
+        plt.plot(iter_time, test_acc, color=COLORS[k])
+        k += 1
+        print(f"Ratio {ratio} done!")
+
+    plt.savefig("tunningtime/German.png", bbox_inches='tight', format="png")
+    plt.show()
+
+    #makeGraph(iter_time,test_acc,"Accuracy per tunning time","tunning time", "Test accuracy")
+
+
 
 
 if __name__ == "__main__":

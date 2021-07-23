@@ -99,7 +99,7 @@ def findBestHpPerModel(model, train_x, train_y, hyper_params):
         print()
 
         clf = GridSearchCV(
-            model(), hyper_params, scoring=scores[0], cv=8
+            model(), hyper_params, scoring=scores[0], cv=3
         )
         clf.fit(train_x, train_y)
 
@@ -260,7 +260,7 @@ def featureSelection(train_x, train_y, time_for_feature_selection, model =None, 
         return all_comb_best_subset
 
 
-def getBestModel(train_x,train_y, best_subset = None):
+def getBestModel(train_x,train_y, time_for_tunning_params, best_subset = None):
     if best_subset != None:
         train_x = train_x[best_subset]
 
@@ -268,28 +268,30 @@ def getBestModel(train_x,train_y, best_subset = None):
               svm.SVC , DecisionTreeClassifier, GaussianNB, GaussianProcessClassifier, MLPClassifier]
 
     DecisionTreeClassifier_HP = [{'criterion': ["gini", "entropy"], 'splitter': ["best", "random"],
-                                  'min_samples_split': [2, 4, 6, 8], 'min_samples_leaf': [2, 4, 6]
-                                     , 'min_weight_fraction_leaf': [0.2, 0.4]}]
+                                  'min_samples_split': [2, 4], 'min_samples_leaf': [4, 6]
+                                     , 'min_weight_fraction_leaf': [ 0.2, 0.4]}]
 
     GaussianNB_HP = [{}]
     GaussianProcessClassifier_HP = [{'random_state': [0], 'multi_class': ['one_vs_rest','one_vs_one'],
-                                     'n_restarts_optimizer': [0,2,4], 'max_iter_predict': [50,100,150] }]
+                                     'n_restarts_optimizer': [2,4], 'max_iter_predict': [50,75,100] }]
     MLPClassifier_HP = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
-                         'learning_rate_init': [0.01, 0.02, 0.005], 'solver': ['sgd', 'adam'],
-                         'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3)]}]
+                         'learning_rate_init': [0.01, 0.02, 0.005,0.03,0.025], 'solver': ['sgd', 'adam'],
+                         'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3),(2,2)]}]
 
-    KNeighborsClassifier_HP = [{'n_neighbors': [10, 25, 50, 75]}]
+    KNeighborsClassifier_HP = [{'n_neighbors': [10, 20, 25, 30], 'weights': ["uniform", "distance"], 'algorithm': ["auto"," ball_tree",
+                                                                                                                   "kd_tree", "brute"]}]
 
-    RandomForestClassifier_HP = [{"max_depth": [200], 'min_samples_split': [4, 6], 'max_features': ['auto', 'sqrt'],
-                                  "random_state": [0], "n_estimators": [125, 250], 'criterion': ["entropy", "gini"]}]
+    RandomForestClassifier_HP = [{"max_depth": [200], 'min_samples_split': [2,4], 'max_features': ['auto', 'sqrt'],
+                                  "random_state": [0], "n_estimators": [25,50,75], 'criterion': ["entropy", "gini"]}]
 
-    AdaBoostClassifier_HP = [{'n_estimators': [25, 75], 'learning_rate': [0.4, 0.8]}]
+    AdaBoostClassifier_HP = [{'n_estimators': [25, 50, 75], 'learning_rate': [0.01,0.02,0.05,0.1]}]
 
     svm.SVC_HP = [{'kernel': ['rbf'], 'gamma': [1e-4],
                    'C': [2, 4, 6]}]
     best_acc = 0
     best_model = ""
     best_hyper_parameters = {}
+    start = time.perf_counter()
     for model in models:
         hyper_parameters = []
         if model == KNeighborsClassifier:
@@ -308,12 +310,14 @@ def getBestModel(train_x,train_y, best_subset = None):
             hyper_parameters = GaussianNB_HP
         elif model == GaussianProcessClassifier:
             hyper_parameters = GaussianProcessClassifier_HP
-
         acc, best_hyper_params_per_model = findBestHpPerModel(model, train_x, train_y, hyper_parameters)
+        end = time.perf_counter()
         if acc > best_acc:
             best_acc = acc
             best_model = model
             best_hyper_parameters = best_hyper_params_per_model
+        if end-start > time_for_tunning_params - 10:
+            break
 
     return  best_model, best_hyper_parameters, best_acc
 
