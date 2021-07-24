@@ -33,7 +33,7 @@ DIRECTORY = "anytime_feature_selection_first/"
 TIME_GRAPH_DIRECTORY = "TimePerK/"
 
 #Input for the the tunning model
-INPUT = ("datasets/water_potability.csv", 30)
+INPUT = ("datasets/water_potability.csv", 50)
 
 #Time per each step in the algorithm
 FEATURE_SELECTION_TIME_RATIO  =   1
@@ -43,26 +43,26 @@ NUM_SAMPLES = [2785, 1000, 768, 1600, 1340]
 NUM_FEATURES = [9, 20, 8, 11, 19]
 
 DecisionTreeClassifier_HP = [{'criterion': ["gini", "entropy"], 'splitter': ["best", "random"],
-                              'min_samples_split': [2, 4], 'min_samples_leaf': [4, 6]
+                              'min_samples_split': [2, 3, 4], 'min_samples_leaf': [2, 4, 6]
                                  , 'min_weight_fraction_leaf': [0.2, 0.4]}]
 
 GaussianNB_HP = [{}]
 GaussianProcessClassifier_HP = [{'random_state': [0], 'multi_class': ['one_vs_rest', 'one_vs_one'],
-                                 'n_restarts_optimizer': [2, 4], 'max_iter_predict': [50, 75, 100]}]
+                                 'n_restarts_optimizer': [2, 3, 4], 'max_iter_predict': [50, 75, 100]}]
 MLPClassifier_HP = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
                      'learning_rate_init': [0.01, 0.02, 0.005, 0.03, 0.025], 'solver': ['sgd', 'adam'],
                      'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3), (2, 2)]}]
 
 KNeighborsClassifier_HP = [
-    {'n_neighbors': [10, 20, 25, 30], 'weights': ["uniform", "distance"], 'algorithm': ["auto", "ball_tree",
+    {'n_neighbors': [10, 15, 20, 25, 30], 'weights': ["uniform", "distance"], 'algorithm': ["auto", "ball_tree",
                                                                                         "kd_tree", "brute"]}]
 
-RandomForestClassifier_HP = [{"max_depth": [200], 'min_samples_split': [2, 4], 'max_features': ['auto', 'sqrt'],
-                              "random_state": [0], "n_estimators": [25, 50, 75], 'criterion': ["entropy", "gini"]}]
+RandomForestClassifier_HP = [{"max_depth": [100,200,250], 'min_samples_split': [2,3, 4], 'max_features': ['auto', 'sqrt'],
+                              "random_state": [0], "n_estimators": [25, 50, 75,100], 'criterion': ["entropy", "gini"]}]
 
-AdaBoostClassifier_HP = [{'n_estimators': [25, 50, 75], 'learning_rate': [0.01, 0.02, 0.05, 0.1]}]
+AdaBoostClassifier_HP = [{'n_estimators': [25, 50, 75], 'learning_rate': [0.01, 0.015, 0.02, 0.05, 0.1]}]
 
-SVC_HP = [{'kernel': ['rbf'], 'gamma': [1e-4],
+SVC_HP = [{'kernel': ['rbf', 'sigmoid', 'poly', 'linear'], 'gamma': [1e-4], 'degree': [2,3,4], 'shrinking': [True, False],
                'C': [2, 4, 6]}]
 
 MODELS = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier,

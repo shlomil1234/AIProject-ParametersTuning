@@ -1,29 +1,16 @@
 
 from Configuration import INPUT, FEATURE_SELECTION_TIME_RATIO,MODEL_AND_PARAMS_TIME_RATIO, \
     NUM_FEATURES, NUM_SAMPLES, COLORS
-from Configuration import KNeighborsClassifier_HP, RandomForestClassifier_HP, AdaBoostClassifier_HP, SVC_HP,\
-    DecisionTreeClassifier_HP, GaussianNB_HP, GaussianProcessClassifier_HP, MLPClassifier_HP, MODELS, HYPER_PARAMS, START_PROB, PROB_FACTOR
-from sklearn.model_selection import cross_val_score
+from Configuration import MODELS, HYPER_PARAMS, START_PROB, PROB_FACTOR
 import pandas as pd
 import numpy as np
-from scipy import stats
 from main import anyTimeForwardSearch, filling_missing_values, normalization, getAccuracy
 from TunningParamsModel import findLabel
 import matplotlib.pyplot as plt
-
-import itertools
 import time
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn import svm
 from sklearn.model_selection import cross_val_score
-from sklearn.naive_bayes import GaussianNB
-from sklearn.gaussian_process import GaussianProcessClassifier
+
 
 import random
 
@@ -43,8 +30,9 @@ def getBestModel(train_x, train_y, time_for_tunning_params):
     best_acc_per_model = [0] * 8
     model_best_params = [0] * 8
     prob = START_PROB
-    while time.perf_counter()-start_time < time_for_tunning_params:
-
+    cycle_time = 0
+    while time_for_tunning_params- (time.perf_counter()-start_time) > cycle_time:
+        cycle_time_start = time.perf_counter()
         if random.random() < prob:
             best_model = random.randrange(len(MODELS))
         else:
@@ -63,6 +51,7 @@ def getBestModel(train_x, train_y, time_for_tunning_params):
             model_best_params[best_model] = params_dict
 
         prob*=PROB_FACTOR
+        cycle_time = time.perf_counter() - cycle_time_start
 
     max_acc = max(best_acc_per_model)
     model_index = best_acc_per_model.index(max_acc)
@@ -138,7 +127,7 @@ def GetBestModelAlgorithm(dataset, label, time_for_feature_selection, time_for_t
                                                                train_y=train_y,
                                                                time_for_tunning_params= time_for_tunning_params
                                                                )
-    print(f"time for choose models and params: {time.perf_counter() - start}")
+    print(f"time for choose features, models and params: {time.perf_counter() - start}")
 
     model = best_model(**best_hyper_parameters)
     model.fit(train_x[best_subset], train_y)
@@ -150,6 +139,8 @@ def GetBestModelAlgorithm(dataset, label, time_for_feature_selection, time_for_t
 def main():
     dataset, total_time = INPUT
     model , acc = tunningParameters(dataset, total_time, 0.5)
+    print(f"Accuracy:{acc}, Model: {model}")
+
 
 
 
