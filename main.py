@@ -56,6 +56,7 @@ def anyTimeForwardSearch(train_x,train_y,model, hyper_params, k_factor, time_lef
     acc = 0
     for feature in features:
         min_acc = 1
+        maximum_acc = 0
         sampling_size = len(train_x.columns) // 6
         selected_features.append(feature)
         features_to_use = [fe for fe in all_features if fe not in selected_features]
@@ -67,8 +68,10 @@ def anyTimeForwardSearch(train_x,train_y,model, hyper_params, k_factor, time_lef
 
             total_acc = sum(cross_val_score(model(**hyper_params), scoring='accuracy', X=train_x[selected_features], y=train_y,
                                     cv=5))/5
-            if total_acc < min_acc:
-                min_acc = total_acc
+            # if total_acc < min_acc:
+            #     min_acc = total_acc
+            if total_acc > maximum_acc:
+                maximum_acc = total_acc
             if total_acc > max_acc:
                 max_acc = total_acc
                 max_features = selected_features.copy()
@@ -76,8 +79,10 @@ def anyTimeForwardSearch(train_x,train_y,model, hyper_params, k_factor, time_lef
                 selected_features.remove(elem)
 
 
-        if min_acc > acc:
-            acc = min_acc
+        # if min_acc > acc:
+        #     acc = min_acc
+        if maximum_acc > acc:
+            acc = maximum_acc
         else:
             selected_features.remove(feature)
 

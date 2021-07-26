@@ -11,9 +11,9 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.gaussian_process import GaussianProcessClassifier
 
 DATASETS=[ "datasets/water_potability.csv", "datasets/German.csv" ,"datasets/diabetes.csv" ,
-           "datasets/wine.csv", "datasets/nba_logreg.csv" ]
+           "datasets/wine.csv", "datasets/nba_logreg.csv", "datasets/Surgical-deepnet.csv" "datasets/data-ori.csv" ]
 
-LABELS = ["Potability","Creditability","Outcome", "quality", "TARGET_5Yrs"]
+LABELS = ["Potability","Creditability","Outcome", "quality", "TARGET_5Yrs", "complication", "SOURCE"]
 
 COLORS = ['b' ,'g', 'r', 'c','m', 'k']
 
@@ -33,7 +33,7 @@ DIRECTORY = "anytime_feature_selection_first/"
 TIME_GRAPH_DIRECTORY = "TimePerK/"
 
 #Input for the the tunning model
-INPUT = ("datasets/water_potability.csv", 50)
+INPUT = ("datasets/data-ori.csv", 150)
 
 #Time per each step in the algorithm
 FEATURE_SELECTION_TIME_RATIO  =   1
@@ -46,24 +46,24 @@ DecisionTreeClassifier_HP = [{'criterion': ["gini", "entropy"], 'splitter': ["be
                               'min_samples_split': [2, 3, 4], 'min_samples_leaf': [2, 4, 6]
                                  , 'min_weight_fraction_leaf': [0.2, 0.4]}]
 
-GaussianNB_HP = [{}]
+GaussianNB_HP = [{'var_smoothing': [1e-9, 1e-8, 1e-7]}]
 GaussianProcessClassifier_HP = [{'random_state': [0], 'multi_class': ['one_vs_rest', 'one_vs_one'],
-                                 'n_restarts_optimizer': [2, 3, 4], 'max_iter_predict': [50, 75, 100]}]
+                                 'n_restarts_optimizer': [1, 2, 3, 4], 'max_iter_predict': [25, 50, 75, 100]}]
 MLPClassifier_HP = [{'activation': ['identity', 'logistic', 'tanh', 'relu'],
-                     'learning_rate_init': [0.01, 0.02, 0.005, 0.03, 0.025], 'solver': ['sgd', 'adam'],
-                     'max_iter': [10], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3), (2, 2)]}]
+                     'learning_rate_init': [0.005, 0.01, 0.02, 0.005, 0.03, 0.025], 'solver': ['sgd', 'adam'],
+                     'max_iter': [5, 10, 15, 20], 'hidden_layer_sizes': [(3, 3), (3, 2), (4, 2), (5, 2), (5, 3), (2, 2)]}]
 
 KNeighborsClassifier_HP = [
     {'n_neighbors': [10, 15, 20, 25, 30], 'weights': ["uniform", "distance"], 'algorithm': ["auto", "ball_tree",
                                                                                         "kd_tree", "brute"]}]
 
-RandomForestClassifier_HP = [{"max_depth": [100,200,250], 'min_samples_split': [2,3, 4], 'max_features': ['auto', 'sqrt'],
-                              "random_state": [0], "n_estimators": [25, 50, 75,100], 'criterion': ["entropy", "gini"]}]
+RandomForestClassifier_HP = [{"max_depth": [25, 50,100,200,250], 'min_samples_split': [2, 3, 4, 5, 6], 'max_features': ['auto', 'sqrt'],
+                              "random_state": [0], "n_estimators": [10, 15, 20, 25, 50, 75,100], 'criterion': ["entropy", "gini"]}]
 
-AdaBoostClassifier_HP = [{'n_estimators': [25, 50, 75], 'learning_rate': [0.01, 0.015, 0.02, 0.05, 0.1]}]
+AdaBoostClassifier_HP = [{'n_estimators': [10, 15, 20, 25, 50, 75], 'learning_rate': [0.01, 0.015, 0.02, 0.05, 0.1]}]
 
-SVC_HP = [{'kernel': ['rbf', 'sigmoid', 'poly', 'linear'], 'gamma': [1e-4], 'degree': [2,3,4], 'shrinking': [True, False],
-               'C': [2, 4, 6]}]
+SVC_HP = [{'kernel': ['rbf', 'sigmoid', 'poly', 'linear'], 'gamma': [1e-4], 'degree': [1, 2, 3, 4, 5], 'shrinking': [True, False],
+               'C': [2, 3, 4, 5, 6]}]
 
 MODELS = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier,
           svm.SVC, DecisionTreeClassifier, GaussianNB, GaussianProcessClassifier, MLPClassifier]

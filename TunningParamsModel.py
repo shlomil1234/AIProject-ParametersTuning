@@ -12,7 +12,15 @@ def findLabel(dataset):
         return "Creditability"
     elif dataset == "datasets/water_potability.csv":
         return "Potability"
-    #TODO: continute...
+    elif dataset == "datasets/nba_logreg.csv":
+        return "TARGET_5Yrs"
+    elif dataset == "datasets/wine.csv":
+        return "quality"
+    elif dataset == "datasets/diabetes.csv":
+        return "Outcome"
+    elif dataset == "datasets/data-ori.csv":
+        return "SOURCE"
+    return "complication"
 
 
 def GetBestModelAlgorithm(dataset, label, time_for_feature_selection, time_for_tunning_params):
