@@ -194,7 +194,7 @@ def main():
     #     k += 1
     #     print(f"Ratio {ratio} done!")
 
-    for i in range(1,4):
+    for i in range(4,7):
         test_acc = []
         dataset_name = dataset.split("/")[1]
         plt.title(f"Dataset: {dataset_name} Accuracy per ratio, time = {total_time * i} sec")

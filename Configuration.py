@@ -33,7 +33,7 @@ DIRECTORY = "anytime_feature_selection_first/"
 TIME_GRAPH_DIRECTORY = "TimePerK/"
 
 #Input for the the tunning model
-INPUT = ("datasets/data-ori.csv", 150)
+INPUT = ("datasets/nba_logreg.csv", 15)
 
 #Time per each step in the algorithm
 FEATURE_SELECTION_TIME_RATIO  =   1
@@ -62,8 +62,8 @@ RandomForestClassifier_HP = [{"max_depth": [25, 50,100,200,250], 'min_samples_sp
 
 AdaBoostClassifier_HP = [{'n_estimators': [10, 15, 20, 25, 50, 75], 'learning_rate': [0.01, 0.015, 0.02, 0.05, 0.1]}]
 
-SVC_HP = [{'kernel': ['rbf', 'sigmoid', 'poly', 'linear'], 'gamma': [1e-4], 'degree': [1, 2, 3, 4, 5], 'shrinking': [True, False],
-               'C': [2, 3, 4, 5, 6]}]
+SVC_HP = [{'kernel': ['rbf', 'sigmoid', 'poly', 'linear'], 'gamma': [0.1,0.5,0.7,0.8,0.9,1,1.1,1.3], 'degree': [1, 2, 3, 4, 5], 'shrinking': [True, False],
+               'C': [0.1,0.5,0.7,0.8,0.9,1,1.1,1.3]}]
 
 MODELS = [KNeighborsClassifier, RandomForestClassifier, AdaBoostClassifier,
           svm.SVC, DecisionTreeClassifier, GaussianNB, GaussianProcessClassifier, MLPClassifier]
